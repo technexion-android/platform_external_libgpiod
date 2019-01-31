@@ -1,0 +1,69 @@
+// libgpiod on AOSP project
+// Author Wig Cheng <wig.cheng@technexion.com>
+
+cc_library {
+    name: "libgpiod",
+    host_supported: true,
+    vendor_available: true,
+    vndk: {
+        enabled: false,
+    },
+    srcs: [
+        "src/lib/core.c",
+        "src/lib/ctxless.c",
+        "src/lib/helpers.c",
+        "src/lib/iter.c",
+        "src/lib/misc.c",
+    ],
+    cflags: ["-Werror", "-Wno-macro-redefined"],
+    export_include_dirs: ["include"],
+    local_include_dirs: ["include"],
+
+    target: {
+        darwin: {
+            enabled: false,
+        },
+    },
+}
+
+cc_binary {
+    name: "gpiodetect",
+    srcs: ["src/tools/gpiodetect.c","src/tools/tools-common.c"],
+    shared_libs: ["libgpiod"],
+    cflags: ["-Werror"],
+}
+
+cc_binary {
+    name: "gpiofind",
+    srcs: ["src/tools/gpiofind.c","src/tools/tools-common.c"],
+    shared_libs: ["libgpiod"],
+    cflags: ["-Werror"],
+}
+
+cc_binary {
+    name: "gpioget",
+    srcs: ["src/tools/gpioget.c","src/tools/tools-common.c"],
+    shared_libs: ["libgpiod"],
+    cflags: ["-Werror", "-Wall"],
+}
+
+cc_binary {
+    name: "gpioinfo",
+    srcs: ["src/tools/gpioinfo.c","src/tools/tools-common.c"],
+    shared_libs: ["libgpiod"],
+    cflags: ["-Werror"],
+}
+
+cc_binary {
+    name: "gpiomon",
+    srcs: ["src/tools/gpiomon.c","src/tools/tools-common.c"],
+    shared_libs: ["libgpiod"],
+    cflags: ["-Werror"],
+}
+
+cc_binary {
+    name: "gpioset",
+    srcs: ["src/tools/gpioset.c","src/tools/tools-common.c"],
+    shared_libs: ["libgpiod"],
+    cflags: ["-Werror"],
+}
