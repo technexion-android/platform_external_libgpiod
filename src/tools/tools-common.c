@@ -17,17 +17,11 @@
 #include <libgen.h>
 #include <errno.h>
 
-const char * get_progname(void)
-{
-	return program_invocation_name;
-}
-
 void die(const char *fmt, ...)
 {
 	va_list va;
 
 	va_start(va, fmt);
-	fprintf(stderr, "%s: ", program_invocation_name);
 	vfprintf(stderr, fmt, va);
 	fprintf(stderr, "\n");
 	va_end(va);
@@ -40,7 +34,6 @@ void die_perror(const char *fmt, ...)
 	va_list va;
 
 	va_start(va, fmt);
-	fprintf(stderr, "%s: ", program_invocation_name);
 	vfprintf(stderr, fmt, va);
 	fprintf(stderr, ": %s\n", strerror(errno));
 	va_end(va);
@@ -50,8 +43,6 @@ void die_perror(const char *fmt, ...)
 
 void print_version(void)
 {
-	printf("%s (libgpiod) v%s\n",
-	       program_invocation_short_name, gpiod_version_string());
 	printf("Copyright (C) 2017-2018 Bartosz Golaszewski\n");
 	printf("License: LGPLv2.1\n");
 	printf("This is free software: you are free to change and redistribute it.\n");

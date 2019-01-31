@@ -34,8 +34,7 @@ static const char *const shortopts = "+hvln:srfF:";
 
 static void print_help(void)
 {
-	printf("Usage: %s [OPTIONS] <chip name/number> <offset 1> <offset 2> ...\n",
-	       get_progname());
+	printf("Usage: gpiomon [OPTIONS] <chip name/number> <offset 1> <offset 2> ...\n");
 	printf("Wait for events on GPIO lines\n");
 	printf("\n");
 	printf("Options:\n");
@@ -282,7 +281,7 @@ int main(int argc, char **argv)
 			ctx.fmt = optarg;
 			break;
 		case '?':
-			die("try %s --help", get_progname());
+			die("try gpiomon --help");
 		default:
 			abort();
 		}

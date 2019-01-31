@@ -34,8 +34,7 @@ static const char *const shortopts = "+hvlm:s:u:b";
 
 static void print_help(void)
 {
-	printf("Usage: %s [OPTIONS] <chip name/number> <offset1>=<value1> <offset2>=<value2> ...\n",
-	       get_progname());
+	printf("Usage: gpioset [OPTIONS] <chip name/number> <offset1>=<value1> <offset2>=<value2> ...\n");
 	printf("Set GPIO line values of a GPIO chip\n");
 	printf("\n");
 	printf("Options:\n");
@@ -218,7 +217,7 @@ int main(int argc, char **argv)
 			cbdata.daemonize = true;
 			break;
 		case '?':
-			die("try %s --help", get_progname());
+			die("try gpioset --help");
 		default:
 			abort();
 		}

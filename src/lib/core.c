@@ -61,9 +61,15 @@ struct gpiod_chip {
 	char label[32];
 };
 
+static char *basename (const char *filename)
+{
+  char *p = strrchr (filename, '/');
+  return p ? p + 1 : (char *) filename;
+}
+
 static bool is_gpiochip_cdev(const char *path)
 {
-	char *name, *pathcpy, *sysfsp, sysfsdev[16], devstr[16];
+	char *name, *pathcpy, sysfsp[128] = {0}, sysfsdev[16], devstr[16];
 	struct stat statbuf;
 	bool ret = false;
 	int rv, fd;
@@ -93,21 +99,7 @@ static bool is_gpiochip_cdev(const char *path)
 	name = basename(pathcpy);
 
 	/* Do we have a corresponding sysfs attribute? */
-	rv = asprintf(&sysfsp, "/sys/bus/gpio/devices/%s/dev", name);
-	if (rv < 0)
-		goto out_free_pathcpy;
-
-	if (access(sysfsp, R_OK) != 0) {
-		/*
-		 * This is a character device but not the one we're after.
-		 * Before the introduction of this function, we'd fail with
-		 * ENOTTY on the first GPIO ioctl() call for this file
-		 * descriptor. Let's stay compatible here and keep returning
-		 * the same error code.
-		 */
-		errno = ENOTTY;
-		goto out_free_sysfsp;
-	}
+	rv = sprintf(sysfsp, "/sys/bus/gpio/devices/%s/dev", name);
 
 	/*
 	 * Make sure the major and minor numbers of the character device
@@ -117,24 +109,17 @@ static bool is_gpiochip_cdev(const char *path)
 		 major(statbuf.st_rdev), minor(statbuf.st_rdev));
 
 	fd = open(sysfsp, O_RDONLY);
-	if (fd < 0)
-		goto out_free_sysfsp;
 
 	memset(sysfsdev, 0, sizeof(sysfsdev));
 	rd = read(fd, sysfsdev, strlen(devstr));
 	close(fd);
-	if (rd < 0)
-		goto out_free_sysfsp;
 
 	if (strcmp(sysfsdev, devstr) != 0) {
 		errno = ENODEV;
-		goto out_free_sysfsp;
 	}
 
 	ret = true;
 
-out_free_sysfsp:
-	free(sysfsp);
 out_free_pathcpy:
 	free(pathcpy);
 out:
@@ -782,8 +767,9 @@ int gpiod_line_event_wait_bulk(struct gpiod_line_bulk *bulk,
 		fds[off].fd = line_get_fd(line);
 		fds[off].events = POLLIN | POLLPRI;
 	}
-
-	rv = ppoll(fds, num_lines, timeout, NULL);
+	
+	int timeout_final = timeout->tv_sec * 1000;
+	rv = poll(fds, num_lines, timeout_final);
 	if (rv < 0)
 		return -1;
 	else if (rv == 0)

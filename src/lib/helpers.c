@@ -29,15 +29,14 @@ static bool isuint(const char *str)
 struct gpiod_chip *gpiod_chip_open_by_name(const char *name)
 {
 	struct gpiod_chip *chip;
-	char *path;
+	char path[128] = {0};
 	int status;
 
-	status = asprintf(&path, "/dev/%s", name);
+	status = sprintf(path, "/dev/%s", name);
 	if (status < 0)
 		return NULL;
 
 	chip = gpiod_chip_open(path);
-	free(path);
 
 	return chip;
 }
@@ -45,15 +44,14 @@ struct gpiod_chip *gpiod_chip_open_by_name(const char *name)
 struct gpiod_chip *gpiod_chip_open_by_number(unsigned int num)
 {
 	struct gpiod_chip *chip;
-	char *path;
+	char path[128] = {0};
 	int status;
 
-	status = asprintf(&path, "/dev/gpiochip%u", num);
+	status = sprintf(path, "/dev/gpiochip%u", num);
 	if (!status)
 		return NULL;
 
 	chip = gpiod_chip_open(path);
-	free(path);
 
 	return chip;
 }

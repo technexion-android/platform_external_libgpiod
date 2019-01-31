@@ -24,8 +24,7 @@ static const char *const shortopts = "+hvl";
 
 static void print_help(void)
 {
-	printf("Usage: %s [OPTIONS] <chip name/number> <offset 1> <offset 2> ...\n",
-	       get_progname());
+	printf("Usage: gpioget [OPTIONS] <chip name/number> <offset 1> <offset 2> ...\n");
 	printf("Read line value(s) from a GPIO chip\n");
 	printf("\n");
 	printf("Options:\n");
@@ -57,7 +56,7 @@ int main(int argc, char **argv)
 			active_low = true;
 			break;
 		case '?':
-			die("try %s --help", get_progname());
+			die("try gpioget --help");
 		default:
 			abort();
 		}

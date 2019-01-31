@@ -15,14 +15,14 @@
 static const struct option longopts[] = {
 	{ "help",	no_argument,	NULL,	'h' },
 	{ "version",	no_argument,	NULL,	'v' },
-	{ GETOPT_NULL_LONGOPT },
+	{ NULL, 0, NULL, 0 },
 };
 
 static const char *const shortopts = "+hv";
 
 static void print_help(void)
 {
-	printf("Usage: %s [OPTIONS]\n", get_progname());
+	printf("Usage: gpiodetect [OPTIONS]\n");
 	printf("List all GPIO chips, print their labels and number of GPIO lines.\n");
 	printf("\n");
 	printf("Options:\n");
@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 			print_version();
 			return EXIT_SUCCESS;
 		case '?':
-			die("try %s --help", get_progname());
+			die("try libgpiod --help");
 		default:
 			abort();
 		}

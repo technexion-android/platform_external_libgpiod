@@ -8,7 +8,7 @@
 /* Misc code that didn't fit anywhere else. */
 
 #include <gpiod.h>
-
+#include "config.h"
 const char *gpiod_version_string(void)
 {
 	return GPIOD_VERSION_STR;

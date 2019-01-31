@@ -152,7 +152,8 @@ static int basic_event_poll(unsigned int num_lines,
 		poll_fds[i].events = POLLIN | POLLPRI;
 	}
 
-	rv = ppoll(poll_fds, num_lines, timeout, NULL);
+	int timeout_final = timeout-> tv_sec * 1000;
+	rv = poll(poll_fds, num_lines, timeout_final);
 	if (rv < 0) {
 		if (errno == EINTR)
 			return GPIOD_CTXLESS_EVENT_POLL_RET_TIMEOUT;
