@@ -7,15 +7,20 @@
 
 /* Common code for GPIO tools. */
 
+#include <errno.h>
 #include <gpiod.h>
+#include <libgen.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "tools-common.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdarg.h>
-#include <libgen.h>
-#include <errno.h>
+const char *get_progname(void)
+{
+	return "technexion libgpiod utility";
+}
 
 void die(const char *fmt, ...)
 {
@@ -43,6 +48,7 @@ void die_perror(const char *fmt, ...)
 
 void print_version(void)
 {
+	printf("(libgpiod) v%s\n", gpiod_version_string());
 	printf("Copyright (C) 2017-2018 Bartosz Golaszewski\n");
 	printf("License: LGPLv2.1\n");
 	printf("This is free software: you are free to change and redistribute it.\n");

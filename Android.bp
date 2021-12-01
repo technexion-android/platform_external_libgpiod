@@ -15,7 +15,7 @@ cc_library {
         "src/lib/iter.c",
         "src/lib/misc.c",
     ],
-    cflags: ["-Werror", "-Wno-macro-redefined"],
+    cflags: ["-Werror", "-Wno-macro-redefined", "-D_GNU_SOURCE"],
     export_include_dirs: ["include"],
     local_include_dirs: ["include"],
 

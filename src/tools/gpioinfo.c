@@ -5,14 +5,14 @@
  * Copyright (C) 2017-2018 Bartosz Golaszewski <bartekgola@gmail.com>
  */
 
+#include <errno.h>
+#include <getopt.h>
 #include <gpiod.h>
-#include "tools-common.h"
-
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdarg.h>
-#include <getopt.h>
-#include <errno.h>
+
+#include "tools-common.h"
 
 typedef bool (*is_set_func)(struct gpiod_line *);
 
@@ -46,7 +46,7 @@ static const char *const shortopts = "+hv";
 
 static void print_help(void)
 {
-	printf("Usage: gpioinfo [OPTIONS] <gpiochip1> ...\n");
+	printf("Usage: %s [OPTIONS] <gpiochip1> ...\n", get_progname());
 	printf("Print information about all lines of the specified GPIO chip(s) (or all gpiochips if none are specified).\n");
 	printf("\n");
 	printf("Options:\n");
@@ -60,12 +60,12 @@ static PRINTF(3, 4) void prinfo(bool *of,
 	char *buf, *buffmt = NULL;
 	size_t len;
 	va_list va;
-	int status;
+	int rv;
 
 	va_start(va, fmt);
-	status = vasprintf(&buf, fmt, va);
+	rv = vasprintf(&buf, fmt, va);
 	va_end(va);
-	if (status < 0)
+	if (rv < 0)
 		die("vasprintf: %s\n", strerror(errno));
 
 	len = strlen(buf) - 1;
@@ -74,8 +74,8 @@ static PRINTF(3, 4) void prinfo(bool *of,
 		*of = true;
 		printf("%s", buf);
 	} else {
-		status = asprintf(&buffmt, "%%%us", prlen);
-		if (status < 0)
+		rv = asprintf(&buffmt, "%%%us", prlen);
+		if (rv < 0)
 			die("asprintf: %s\n", strerror(errno));
 
 		printf(buffmt, buf);
@@ -169,7 +169,7 @@ int main(int argc, char **argv)
 			print_version();
 			return EXIT_SUCCESS;
 		case '?':
-			die("try gpioinfo --help");
+			die("try %s --help", get_progname());
 		default:
 			abort();
 		}

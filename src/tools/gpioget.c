@@ -5,13 +5,13 @@
  * Copyright (C) 2017-2018 Bartosz Golaszewski <bartekgola@gmail.com>
  */
 
+#include <getopt.h>
 #include <gpiod.h>
-#include "tools-common.h"
-
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
-#include <getopt.h>
-#include <limits.h>
+
+#include "tools-common.h"
 
 static const struct option longopts[] = {
 	{ "help",	no_argument,	NULL,	'h' },
@@ -24,7 +24,8 @@ static const char *const shortopts = "+hvl";
 
 static void print_help(void)
 {
-	printf("Usage: gpioget [OPTIONS] <chip name/number> <offset 1> <offset 2> ...\n");
+	printf("Usage: %s [OPTIONS] <chip name/number> <offset 1> <offset 2> ...\n",
+	       get_progname());
 	printf("Read line value(s) from a GPIO chip\n");
 	printf("\n");
 	printf("Options:\n");
@@ -36,7 +37,7 @@ static void print_help(void)
 int main(int argc, char **argv)
 {
 	unsigned int *offsets, i, num_lines;
-	int *values, optc, opti, status;
+	int *values, optc, opti, rv;
 	bool active_low = false;
 	char *device, *end;
 
@@ -56,7 +57,7 @@ int main(int argc, char **argv)
 			active_low = true;
 			break;
 		case '?':
-			die("try gpioget --help");
+			die("try %s --help", get_progname());
 		default:
 			abort();
 		}
@@ -85,10 +86,10 @@ int main(int argc, char **argv)
 			die("invalid GPIO offset: %s", argv[i + 1]);
 	}
 
-	status = gpiod_ctxless_get_value_multiple(device, offsets, values,
-						  num_lines, active_low,
-						  "gpioget");
-	if (status < 0)
+	rv = gpiod_ctxless_get_value_multiple(device, offsets, values,
+					      num_lines, active_low,
+					      "gpioget");
+	if (rv < 0)
 		die_perror("error reading GPIO values");
 
 	for (i = 0; i < num_lines; i++) {

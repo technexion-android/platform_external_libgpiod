@@ -2,7 +2,7 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Full library version string. */
-#define GPIOD_VERSION_STR "1.3.devel"
+#define GPIOD_VERSION_STR "1.4"
 
 /* define if the compiler supports basic C++11 syntax */
 /* #undef HAVE_CXX11 */
@@ -20,7 +20,7 @@
 #define HAVE_INTTYPES_H 1
 
 /* Define to 1 if you have the <linux/gpio.h> header file. */
-#define HAVE_LINUX_GPIO_H 0
+#define HAVE_LINUX_GPIO_H 1
 
 /* Define to 1 if your system has a GNU libc compatible `malloc' function, and
    to 0 otherwise. */
@@ -72,7 +72,7 @@
 #define PACKAGE_NAME "libgpiod"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "libgpiod 1.3"
+#define PACKAGE_STRING "libgpiod 1.4"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libgpiod"
@@ -81,13 +81,13 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "1.3"
+#define PACKAGE_VERSION "1.4"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "1.3"
+#define VERSION "1.4"
 
 /* We want GNU extensions */
 #define _GNU_SOURCE /**/

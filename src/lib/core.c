@@ -7,20 +7,19 @@
 
 /* Low-level, core library code. */
 
-#include <gpiod.h>
-
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <poll.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <sys/sysmacros.h>
+#include <gpiod.h>
 #include <linux/gpio.h>
+#include <poll.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/ioctl.h>
+#include <sys/stat.h>
+#include <sys/sysmacros.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 enum {
 	LINE_FREE = 0,
@@ -61,20 +60,14 @@ struct gpiod_chip {
 	char label[32];
 };
 
-static char *basename (const char *filename)
-{
-  char *p = strrchr (filename, '/');
-  return p ? p + 1 : (char *) filename;
-}
-
 static bool is_gpiochip_cdev(const char *path)
 {
-	char *name, *pathcpy, sysfsp[128] = {0}, sysfsdev[16], devstr[16];
+	char *name, *pathcpy, *sysfsp, sysfsdev[16], devstr[16];
 	struct stat statbuf;
 	bool ret = false;
 	int rv, fd;
 	ssize_t rd;
-
+	
 	rv = lstat(path, &statbuf);
 	if (rv)
 		goto out;
@@ -93,13 +86,28 @@ static bool is_gpiochip_cdev(const char *path)
 
 	/* Get the basename. */
 	pathcpy = strdup(path);
+
 	if (!pathcpy)
 		goto out;
 
 	name = basename(pathcpy);
 
 	/* Do we have a corresponding sysfs attribute? */
-	rv = sprintf(sysfsp, "/sys/bus/gpio/devices/%s/dev", name);
+	rv = asprintf(&sysfsp, "/sys/bus/gpio/devices/%s/dev", name);
+	if (rv < 0)
+		goto out_free_pathcpy;
+
+	if (access(sysfsp, R_OK) != 0) {
+		/*
+		 * This is a character device but not the one we're after.
+		 * Before the introduction of this function, we'd fail with
+		 * ENOTTY on the first GPIO ioctl() call for this file
+		 * descriptor. Let's stay compatible here and keep returning
+		 * the same error code.
+		 */
+		errno = ENOTTY;
+		goto out_free_sysfsp;
+	}
 
 	/*
 	 * Make sure the major and minor numbers of the character device
@@ -109,17 +117,24 @@ static bool is_gpiochip_cdev(const char *path)
 		 major(statbuf.st_rdev), minor(statbuf.st_rdev));
 
 	fd = open(sysfsp, O_RDONLY);
+	if (fd < 0)
+		goto out_free_sysfsp;
 
 	memset(sysfsdev, 0, sizeof(sysfsdev));
 	rd = read(fd, sysfsdev, strlen(devstr));
 	close(fd);
+	if (rd < 0)
+		goto out_free_sysfsp;
 
 	if (strcmp(sysfsdev, devstr) != 0) {
 		errno = ENODEV;
+		goto out_free_sysfsp;
 	}
 
 	ret = true;
 
+out_free_sysfsp:
+	free(sysfsp);
 out_free_pathcpy:
 	free(pathcpy);
 out:
@@ -130,7 +145,7 @@ struct gpiod_chip *gpiod_chip_open(const char *path)
 {
 	struct gpiochip_info info;
 	struct gpiod_chip *chip;
-	int status, fd;
+	int rv, fd;
 
 	fd = open(path, O_RDWR | O_CLOEXEC);
 	if (fd < 0)
@@ -152,8 +167,8 @@ struct gpiod_chip *gpiod_chip_open(const char *path)
 	memset(chip, 0, sizeof(*chip));
 	memset(&info, 0, sizeof(info));
 
-	status = ioctl(fd, GPIO_GET_CHIPINFO_IOCTL, &info);
-	if (status < 0)
+	rv = ioctl(fd, GPIO_GET_CHIPINFO_IOCTL, &info);
+	if (rv < 0)
 		goto err_free_chip;
 
 	chip->fd = fd;
@@ -225,7 +240,7 @@ struct gpiod_line *
 gpiod_chip_get_line(struct gpiod_chip *chip, unsigned int offset)
 {
 	struct gpiod_line *line;
-	int status;
+	int rv;
 
 	if (offset >= chip->num_lines) {
 		errno = EINVAL;
@@ -245,7 +260,6 @@ gpiod_chip_get_line(struct gpiod_chip *chip, unsigned int offset)
 			return NULL;
 
 		memset(line, 0, sizeof(*line));
-		line->fd_handle = NULL;
 
 		line->offset = offset;
 		line->chip = chip;
@@ -255,8 +269,8 @@ gpiod_chip_get_line(struct gpiod_chip *chip, unsigned int offset)
 		line = chip->lines[offset];
 	}
 
-	status = gpiod_line_update(line);
-	if (status < 0)
+	rv = gpiod_line_update(line);
+	if (rv < 0)
 		return NULL;
 
 	return line;
@@ -307,10 +321,10 @@ static int line_get_fd(struct gpiod_line *line)
 
 static void line_maybe_update(struct gpiod_line *line)
 {
-	int status;
+	int rv;
 
-	status = gpiod_line_update(line);
-	if (status < 0)
+	rv = gpiod_line_update(line);
+	if (rv < 0)
 		line->up_to_date = false;
 }
 
@@ -664,13 +678,13 @@ bool gpiod_line_is_free(struct gpiod_line *line)
 int gpiod_line_get_value(struct gpiod_line *line)
 {
 	struct gpiod_line_bulk bulk;
-	int status, value;
+	int rv, value;
 
 	gpiod_line_bulk_init(&bulk);
 	gpiod_line_bulk_add(&bulk, line);
 
-	status = gpiod_line_get_value_bulk(&bulk, &value);
-	if (status < 0)
+	rv = gpiod_line_get_value_bulk(&bulk, &value);
+	if (rv < 0)
 		return -1;
 
 	return value;
@@ -681,7 +695,7 @@ int gpiod_line_get_value_bulk(struct gpiod_line_bulk *bulk, int *values)
 	struct gpiohandle_data data;
 	struct gpiod_line *first;
 	unsigned int i;
-	int status, fd;
+	int rv, fd;
 
 	if (!line_bulk_same_chip(bulk) || !line_bulk_all_requested(bulk))
 		return -1;
@@ -692,8 +706,8 @@ int gpiod_line_get_value_bulk(struct gpiod_line_bulk *bulk, int *values)
 
 	fd = line_get_fd(first);
 
-	status = ioctl(fd, GPIOHANDLE_GET_LINE_VALUES_IOCTL, &data);
-	if (status < 0)
+	rv = ioctl(fd, GPIOHANDLE_GET_LINE_VALUES_IOCTL, &data);
+	if (rv < 0)
 		return -1;
 
 	for (i = 0; i < gpiod_line_bulk_num_lines(bulk); i++)
@@ -717,7 +731,7 @@ int gpiod_line_set_value_bulk(struct gpiod_line_bulk *bulk, const int *values)
 	struct gpiohandle_data data;
 	struct gpiod_line *line;
 	unsigned int i;
-	int status, fd;
+	int rv, fd;
 
 	if (!line_bulk_same_chip(bulk) || !line_bulk_all_requested(bulk))
 		return -1;
@@ -730,8 +744,8 @@ int gpiod_line_set_value_bulk(struct gpiod_line_bulk *bulk, const int *values)
 	line = gpiod_line_bulk_get_line(bulk, 0);
 	fd = line_get_fd(line);
 
-	status = ioctl(fd, GPIOHANDLE_SET_LINE_VALUES_IOCTL, &data);
-	if (status < 0)
+	rv = ioctl(fd, GPIOHANDLE_SET_LINE_VALUES_IOCTL, &data);
+	if (rv < 0)
 		return -1;
 
 	return 0;
@@ -767,9 +781,8 @@ int gpiod_line_event_wait_bulk(struct gpiod_line_bulk *bulk,
 		fds[off].fd = line_get_fd(line);
 		fds[off].events = POLLIN | POLLPRI;
 	}
-	
-	int timeout_final = timeout->tv_sec * 1000;
-	rv = poll(fds, num_lines, timeout_final);
+
+	rv = ppoll(fds, num_lines, timeout, NULL);
 	if (rv < 0)
 		return -1;
 	else if (rv == 0)

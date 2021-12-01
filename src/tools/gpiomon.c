@@ -5,18 +5,18 @@
  * Copyright (C) 2017-2018 Bartosz Golaszewski <bartekgola@gmail.com>
  */
 
-#include <gpiod.h>
-#include "tools-common.h"
-
-#include <stdio.h>
-#include <string.h>
+#include <errno.h>
 #include <getopt.h>
-#include <signal.h>
-#include <sys/signalfd.h>
+#include <gpiod.h>
 #include <limits.h>
 #include <poll.h>
-#include <errno.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/signalfd.h>
 #include <unistd.h>
+
+#include "tools-common.h"
 
 static const struct option longopts[] = {
 	{ "help",		no_argument,		NULL,	'h' },
@@ -26,16 +26,18 @@ static const struct option longopts[] = {
 	{ "silent",		no_argument,		NULL,	's' },
 	{ "rising-edge",	no_argument,		NULL,	'r' },
 	{ "falling-edge",	no_argument,		NULL,	'f' },
+	{ "line-buffered",	no_argument,		NULL,	'b' },
 	{ "format",		required_argument,	NULL,	'F' },
 	{ GETOPT_NULL_LONGOPT },
 };
 
-static const char *const shortopts = "+hvln:srfF:";
+static const char *const shortopts = "+hvln:srfbF:";
 
 static void print_help(void)
 {
-	printf("Usage: gpiomon [OPTIONS] <chip name/number> <offset 1> <offset 2> ...\n");
-	printf("Wait for events on GPIO lines\n");
+	printf("Usage: %s [OPTIONS] <chip name/number> <offset 1> <offset 2> ...\n",
+	       get_progname());
+	printf("Wait for events on GPIO lines and print them to standard output\n");
 	printf("\n");
 	printf("Options:\n");
 	printf("  -h, --help:\t\tdisplay this message and exit\n");
@@ -45,6 +47,7 @@ static void print_help(void)
 	printf("  -s, --silent:\t\tdon't print event info\n");
 	printf("  -r, --rising-edge:\tonly process rising edge events\n");
 	printf("  -f, --falling-edge:\tonly process falling edge events\n");
+	printf("  -b, --line-buffered:\tset standard output as line buffered\n");
 	printf("  -F, --format=FMT\tspecify custom output format\n");
 	printf("\n");
 	printf("Format specifiers:\n");
@@ -140,7 +143,7 @@ static int poll_callback(unsigned int num_lines,
 {
 	struct pollfd pfds[GPIOD_LINE_BULK_MAX_LINES + 1];
 	struct mon_ctx *ctx = data;
-	int cnt, ts, ret;
+	int cnt, ts, rv;
 	unsigned int i;
 
 	for (i = 0; i < num_lines; i++) {
@@ -159,12 +162,12 @@ static int poll_callback(unsigned int num_lines,
 	else if (cnt == 0)
 		return GPIOD_CTXLESS_EVENT_POLL_RET_TIMEOUT;
 
-	ret = cnt;
+	rv = cnt;
 	for (i = 0; i < num_lines; i++) {
 		if (pfds[i].revents) {
 			fds[i].event = true;
 			if (!--cnt)
-				return ret;
+				return rv;
 		}
 	}
 
@@ -242,7 +245,7 @@ int main(int argc, char **argv)
 	unsigned int offsets[GPIOD_LINE_BULK_MAX_LINES], num_lines = 0, offset;
 	bool active_low = false, watch_rising = false, watch_falling = false;
 	struct timespec timeout = { 10, 0 };
-	int optc, opti, ret, i, event_type;
+	int optc, opti, rv, i, event_type;
 	struct mon_ctx ctx;
 	char *end;
 
@@ -277,11 +280,14 @@ int main(int argc, char **argv)
 		case 'f':
 			watch_falling = true;
 			break;
+		case 'b':
+			setlinebuf(stdout);
+			break;
 		case 'F':
 			ctx.fmt = optarg;
 			break;
 		case '?':
-			die("try gpiomon --help");
+			die("try %s --help", get_progname());
 		default:
 			abort();
 		}
@@ -314,12 +320,12 @@ int main(int argc, char **argv)
 
 	ctx.sigfd = make_signalfd();
 
-	ret = gpiod_ctxless_event_monitor_multiple(argv[0], event_type,
-						   offsets, num_lines,
-						   active_low, "gpiomon",
-						   &timeout, poll_callback,
-						   event_callback, &ctx);
-	if (ret)
+	rv = gpiod_ctxless_event_monitor_multiple(argv[0], event_type,
+						  offsets, num_lines,
+						  active_low, "gpiomon",
+						  &timeout, poll_callback,
+						  event_callback, &ctx);
+	if (rv)
 		die_perror("error waiting for events");
 
 	return EXIT_SUCCESS;

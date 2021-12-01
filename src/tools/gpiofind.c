@@ -5,12 +5,12 @@
  * Copyright (C) 2017-2018 Bartosz Golaszewski <bartekgola@gmail.com>
  */
 
+#include <getopt.h>
 #include <gpiod.h>
-#include "tools-common.h"
-
 #include <stdio.h>
 #include <string.h>
-#include <getopt.h>
+
+#include "tools-common.h"
 
 static const struct option longopts[] = {
 	{ "help",	no_argument,	NULL,	'h' },
@@ -22,7 +22,7 @@ static const char *const shortopts = "+hv";
 
 static void print_help(void)
 {
-	printf("Usage: gpiofind [OPTIONS] <name>\n");
+	printf("Usage: %s [OPTIONS] <name>\n", get_progname());
 	printf("Find a GPIO line by name. The output of this command can be used as input for gpioget/set.\n");
 	printf("\n");
 	printf("Options:\n");
@@ -49,7 +49,7 @@ int main(int argc, char **argv)
 			print_version();
 			return EXIT_SUCCESS;
 		case '?':
-			die("try gpiofind --help");
+			die("try %s --help", get_progname());
 		default:
 			abort();
 		}

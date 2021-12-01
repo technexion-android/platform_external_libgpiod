@@ -5,19 +5,19 @@
  * Copyright (C) 2017-2018 Bartosz Golaszewski <bartekgola@gmail.com>
  */
 
+#include <errno.h>
 #include <gpiod.h>
-#include "tools-common.h"
-
+#include <getopt.h>
+#include <limits.h>
+#include <poll.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
-#include <getopt.h>
 #include <sys/select.h>
-#include <signal.h>
 #include <sys/signalfd.h>
-#include <poll.h>
-#include <limits.h>
-#include <errno.h>
 #include <unistd.h>
+
+#include "tools-common.h"
 
 static const struct option longopts[] = {
 	{ "help",		no_argument,		NULL,	'h' },
@@ -34,8 +34,9 @@ static const char *const shortopts = "+hvlm:s:u:b";
 
 static void print_help(void)
 {
-	printf("Usage: gpioset [OPTIONS] <chip name/number> <offset1>=<value1> <offset2>=<value2> ...\n");
-	printf("Set GPIO line values of a GPIO chip\n");
+	printf("Usage: %s [OPTIONS] <chip name/number> <offset1>=<value1> <offset2>=<value2> ...\n",
+	       get_progname());
+	printf("Set GPIO line values of a GPIO chip and maintain the state until the process exits\n");
 	printf("\n");
 	printf("Options:\n");
 	printf("  -h, --help:\t\tdisplay this message and exit\n");
@@ -52,6 +53,12 @@ static void print_help(void)
 	printf("  wait:\t\tset values and wait for user to press ENTER\n");
 	printf("  time:\t\tset values and sleep for a specified amount of time\n");
 	printf("  signal:\tset values and wait for SIGINT or SIGTERM\n");
+	printf("\n");
+	printf("Note: the state of a GPIO line controlled over the character device reverts to default\n");
+	printf("when the last process referencing the file descriptor representing the device file exits.\n");
+	printf("This means that it's wrong to run gpioset, have it exit and expect the line to continue\n");
+	printf("being driven high or low. It may happen if given pin is floating but it must be interpreted\n");
+	printf("as undefined behavior.\n");
 }
 
 struct callback_data {
@@ -62,11 +69,11 @@ struct callback_data {
 
 static void maybe_daemonize(bool daemonize)
 {
-	int status;
+	int rv;
 
 	if (daemonize) {
-		status = daemon(0, 0);
-		if (status < 0)
+		rv = daemon(0, 0);
+		if (rv < 0)
 			die("unable to daemonize: %s", strerror(errno));
 	}
 }
@@ -87,16 +94,16 @@ static void wait_time(void *data)
 static void wait_signal(void *data)
 {
 	struct callback_data *cbdata = data;
-	int sigfd, status;
 	struct pollfd pfd;
 	sigset_t sigmask;
+	int sigfd, rv;
 
 	sigemptyset(&sigmask);
 	sigaddset(&sigmask, SIGTERM);
 	sigaddset(&sigmask, SIGINT);
 
-	status = sigprocmask(SIG_BLOCK, &sigmask, NULL);
-	if (status < 0)
+	rv = sigprocmask(SIG_BLOCK, &sigmask, NULL);
+	if (rv < 0)
 		die("error blocking signals: %s", strerror(errno));
 
 	sigfd = signalfd(-1, &sigmask, 0);
@@ -110,10 +117,10 @@ static void wait_signal(void *data)
 	maybe_daemonize(cbdata->daemonize);
 
 	for (;;) {
-		status = poll(&pfd, 1, 1000 /* one second */);
-		if (status < 0)
+		rv = poll(&pfd, 1, 1000 /* one second */);
+		if (rv < 0)
 			die("error polling for signals: %s", strerror(errno));
-		else if (status > 0)
+		else if (rv > 0)
 			break;
 	}
 
@@ -175,7 +182,7 @@ int main(int argc, char **argv)
 {
 	const struct mode_mapping *mode = &modes[MODE_EXIT];
 	unsigned int *offsets, num_lines, i;
-	int *values, status, optc, opti;
+	int *values, rv, optc, opti;
 	struct callback_data cbdata;
 	bool active_low = false;
 	char *device, *end;
@@ -217,7 +224,7 @@ int main(int argc, char **argv)
 			cbdata.daemonize = true;
 			break;
 		case '?':
-			die("try gpioset --help");
+			die("try %s --help", get_progname());
 		default:
 			abort();
 		}
@@ -250,8 +257,8 @@ int main(int argc, char **argv)
 		die("out of memory");
 
 	for (i = 0; i < num_lines; i++) {
-		status = sscanf(argv[i + 1], "%u=%d", &offsets[i], &values[i]);
-		if (status != 2)
+		rv = sscanf(argv[i + 1], "%u=%d", &offsets[i], &values[i]);
+		if (rv != 2)
 			die("invalid offset<->value mapping: %s", argv[i + 1]);
 
 		if (values[i] != 0 && values[i] != 1)
@@ -261,11 +268,10 @@ int main(int argc, char **argv)
 			die("invalid offset: %s", argv[i + 1]);
 	}
 
-	status = gpiod_ctxless_set_value_multiple(device, offsets, values,
-						  num_lines, active_low,
-						  "gpioset", mode->callback,
-						  &cbdata);
-	if (status < 0)
+	rv = gpiod_ctxless_set_value_multiple(device, offsets, values,
+					      num_lines, active_low, "gpioset",
+					      mode->callback, &cbdata);
+	if (rv < 0)
 		die_perror("error setting the GPIO line values");
 
 	free(offsets);
